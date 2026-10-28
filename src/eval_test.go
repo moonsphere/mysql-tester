@@ -57,6 +57,53 @@ func TestExpandEvalQuery(t *testing.T) {
 	require.EqualError(t, err, "variable $missing is not set")
 }
 
+func TestParseLetAssignmentRemovesCommandDelimiter(t *testing.T) {
+	tests := []struct {
+		name      string
+		raw       string
+		delimiter string
+		wantName  string
+		wantValue string
+	}{
+		{
+			name:      "numeric value",
+			raw:       " $nines=999999999;",
+			delimiter: ";",
+			wantName:  "nines",
+			wantValue: "999999999",
+		},
+		{
+			name:      "string value",
+			raw:       " $block_mode=aes-128-ecb;",
+			delimiter: ";",
+			wantName:  "block_mode",
+			wantValue: "aes-128-ecb",
+		},
+		{
+			name:      "custom delimiter and multiline query",
+			raw:       " $query=`SELECT 1;\nSELECT 2`|",
+			delimiter: "|",
+			wantName:  "query",
+			wantValue: "`SELECT 1;\nSELECT 2`",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			parsed, err := ParseQuery(query{Query: "--let" + tt.raw, delimiter: tt.delimiter})
+			require.NoError(t, err)
+			require.NotNil(t, parsed)
+			require.Equal(t, Q_LET, parsed.tp)
+
+			name, value, ok := parseLetAssignment(parsed.Query, parsed.delimiter)
+			require.True(t, ok)
+			require.Equal(t, tt.wantName, name)
+			require.Equal(t, tt.wantValue, value)
+			require.NotEqual(t, tt.delimiter, value[len(value)-1:])
+		})
+	}
+}
+
 func TestEvalExecutesAndConsumesExpectedError(t *testing.T) {
 	registerEvalDriver()
 

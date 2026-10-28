@@ -496,15 +496,8 @@ func (t *tester) Run() error {
 			q.Query = strings.TrimSuffix(strings.TrimSpace(q.Query), q.delimiter)
 			t.disconnect(q.Query)
 		case Q_LET:
-			q.Query = strings.TrimSpace(q.Query)
-			eqIdx := strings.Index(q.Query, "=")
-			if eqIdx > 1 {
-				start := 0
-				if q.Query[0] == '$' {
-					start = 1
-				}
-				varName := strings.TrimSpace(q.Query[start:eqIdx])
-				varValue := strings.TrimSpace(q.Query[eqIdx+1:])
+			varName, varValue, ok := parseLetAssignment(q.Query, q.delimiter)
+			if ok {
 				varSearch := regexp.MustCompile("`(.*)`")
 				varValue = varSearch.ReplaceAllStringFunc(varValue, func(s string) string {
 					s = strings.Trim(s, "`")
@@ -555,6 +548,25 @@ func (t *tester) Run() error {
 	}
 
 	return t.flushResult()
+}
+
+// parseLetAssignment parses a mysqltest --let assignment. The command
+// delimiter belongs to the --let command and must not become part of the
+// variable value used by a later --eval command.
+func parseLetAssignment(raw, delimiter string) (name, value string, ok bool) {
+	assignment := strings.TrimSpace(raw)
+	assignment = strings.TrimSuffix(assignment, delimiter)
+	assignment = strings.TrimSpace(assignment)
+	eqIdx := strings.Index(assignment, "=")
+	if eqIdx <= 1 {
+		return "", "", false
+	}
+
+	start := 0
+	if assignment[0] == '$' {
+		start = 1
+	}
+	return strings.TrimSpace(assignment[start:eqIdx]), strings.TrimSpace(assignment[eqIdx+1:]), true
 }
 
 // expandEvalQuery expands mysqltest variables in an eval command and turns it
