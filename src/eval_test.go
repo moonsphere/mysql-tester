@@ -60,6 +60,7 @@ func TestExpandEvalQuery(t *testing.T) {
 func TestParseLetAssignmentRemovesCommandDelimiter(t *testing.T) {
 	tests := []struct {
 		name      string
+		prefix    string
 		raw       string
 		delimiter string
 		wantName  string
@@ -67,6 +68,7 @@ func TestParseLetAssignmentRemovesCommandDelimiter(t *testing.T) {
 	}{
 		{
 			name:      "numeric value",
+			prefix:    "let",
 			raw:       " $nines=999999999;",
 			delimiter: ";",
 			wantName:  "nines",
@@ -74,6 +76,7 @@ func TestParseLetAssignmentRemovesCommandDelimiter(t *testing.T) {
 		},
 		{
 			name:      "string value",
+			prefix:    "--let",
 			raw:       " $block_mode=aes-128-ecb;",
 			delimiter: ";",
 			wantName:  "block_mode",
@@ -81,6 +84,7 @@ func TestParseLetAssignmentRemovesCommandDelimiter(t *testing.T) {
 		},
 		{
 			name:      "custom delimiter and multiline query",
+			prefix:    "--let",
 			raw:       " $query=`SELECT 1;\nSELECT 2`|",
 			delimiter: "|",
 			wantName:  "query",
@@ -90,7 +94,7 @@ func TestParseLetAssignmentRemovesCommandDelimiter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			parsed, err := ParseQuery(query{Query: "--let" + tt.raw, delimiter: tt.delimiter})
+			parsed, err := ParseQuery(query{Query: tt.prefix + tt.raw, delimiter: tt.delimiter})
 			require.NoError(t, err)
 			require.NotNil(t, parsed)
 			require.Equal(t, Q_LET, parsed.tp)
